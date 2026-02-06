@@ -181,8 +181,20 @@ function M.show_capture_detail(capture)
 
   if capture.metadata then
     table.insert(lines, 'Metadata:')
-    for key, value in pairs(capture.metadata) do
-      table.insert(lines, '  ' .. key .. ': ' .. tostring(value))
+    -- Handle metadata safely (might be userdata from JSON)
+    local metadata = capture.metadata
+    if type(metadata) == 'table' then
+      for key, value in pairs(metadata) do
+        table.insert(lines, '  ' .. key .. ': ' .. tostring(value))
+      end
+    else
+      -- If not a table, try to show as string
+      local ok, json_str = pcall(vim.json.encode, metadata)
+      if ok then
+        table.insert(lines, '  ' .. json_str)
+      else
+        table.insert(lines, '  [metadata unavailable]')
+      end
     end
   end
 
