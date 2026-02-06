@@ -7,13 +7,33 @@ local M = {}
 -- Setup function called by user
 function M.setup(user_config)
   -- Merge user config with defaults
-  config.setup(user_config)
+  local cfg = config.setup(user_config)
 
   -- Create user commands
   M.create_commands()
 
   -- Setup keymaps if configured
   M.setup_keymaps()
+
+  -- Setup optional features
+  if cfg.tag_completion then
+    local ok, completion = pcall(require, 'engram.completion')
+    if ok then
+      completion.setup()
+    end
+  end
+
+  if cfg.auto_capture_todos then
+    local ok, todo = pcall(require, 'engram.todo')
+    if ok then
+      todo.enable_auto_scan()
+    end
+  end
+
+  -- Load offline queue
+  if cfg.offline_queue then
+    pcall(require, 'engram.queue')
+  end
 
   return M
 end
@@ -51,8 +71,22 @@ function M.create_commands()
   end, { desc = 'Create a core memory' })
 
   vim.api.nvim_create_user_command('EngramMemoryList', function()
-    commands.list_memories()
+    commands.list_memories_telescope()
   end, { desc = 'List memories' })
+
+  -- Queue commands
+  vim.api.nvim_create_user_command('EngramQueueSync', function()
+    commands.sync_queue()
+  end, { desc = 'Sync offline queue' })
+
+  vim.api.nvim_create_user_command('EngramQueueStatus', function()
+    commands.queue_status()
+  end, { desc = 'Show queue status' })
+
+  -- TODO commands
+  vim.api.nvim_create_user_command('EngramScanTodos', function()
+    commands.scan_todos()
+  end, { desc = 'Scan buffer for TODO comments' })
 
   -- Health check
   vim.api.nvim_create_user_command('EngramHealth', function()
@@ -101,6 +135,12 @@ function M.setup_keymaps()
       commands.search_captures()
     end, vim.tbl_extend('force', opts, { desc = 'Engram: Search captures' }))
   end
+
+  if keymaps.sync_queue then
+    vim.keymap.set('n', keymaps.sync_queue, function()
+      commands.sync_queue()
+    end, vim.tbl_extend('force', opts, { desc = 'Engram: Sync queue' }))
+  end
 end
 
 -- Export commands for direct access
@@ -112,5 +152,8 @@ M.search = commands.search_captures
 M.create_memory = commands.create_memory
 M.list_memories = commands.list_memories
 M.health = commands.health_check
+M.sync_queue = commands.sync_queue
+M.queue_status = commands.queue_status
+M.scan_todos = commands.scan_todos
 
 return M
